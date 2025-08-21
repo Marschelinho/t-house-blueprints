@@ -187,6 +187,18 @@ blueprint:
               filter:
                 - domain: zone
 
+        zones_empty:
+          name: "When no devices inside the zones"
+          description: What to do when there are no devices in the selected zones? 
+          default: send_to_none
+          selector:
+            select:
+              options:
+                - label: Nobody will receive a notification
+                  value: send_to_none
+                - label: Everyone will receive a notification (independend which zone)
+                  value: send_to_all
+
     ##############################
     # Input: Notification Content
     ##############################
@@ -1216,12 +1228,19 @@ sequence:
       #   {{ debug.messages|join(' | ') }}
 
       notify_service: >-
-        {% set devices = namespace(data = [])%}
-        {% for device in filtered_devices %}
-          {% set devices.data = devices.data + ["notify.mobile_app_{id}".format(id=device_attr(device,'name')|slugify)] %}
-        {% endfor %}
-        {{ devices.data }}
-     
+        {% set devices = namespace(data = []) %}
+        
+        {% if filtered_devices | length == 0 and zones_empty == 'send_to_all' %}
+          {% for device in notify_device %}
+            {% set devices.data = devices.data + ["notify.mobile_app_{id}".format(id=device_attr(device, 'name') | slugify)] %}
+          {% endfor %}
+        {% else %}
+          {% for device in filtered_devices %}
+            {% set devices.data = devices.data + ["notify.mobile_app_{id}".format(id=device_attr(device, 'name') | slugify)] %}
+          {% endfor %}
+        {% endif %}
+        
+        {{ devices.data }}     
 
   # - service: persistent_notification.create
   #   data:
